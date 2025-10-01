@@ -1,6 +1,6 @@
 /*!
 CSSLint v1.0.5
-Copyright (c) 2017 Nicole Sullivan and Nicholas C. Zakas. All rights reserved.
+Copyright (c) 2025 Nicole Sullivan and Nicholas C. Zakas. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the 'Software'), to deal
@@ -3347,7 +3347,7 @@ var Properties = module.exports = {
     "appearance"                    : "none | auto",
     "-moz-appearance"               : "none | button | button-arrow-down | button-arrow-next | button-arrow-previous | button-arrow-up | button-bevel | button-focus | caret | checkbox | checkbox-container | checkbox-label | checkmenuitem | dualbutton | groupbox | listbox | listitem | menuarrow | menubar | menucheckbox | menuimage | menuitem | menuitemtext | menulist | menulist-button | menulist-text | menulist-textfield | menupopup | menuradio | menuseparator | meterbar | meterchunk | progressbar | progressbar-vertical | progresschunk | progresschunk-vertical | radio | radio-container | radio-label | radiomenuitem | range | range-thumb | resizer | resizerpanel | scale-horizontal | scalethumbend | scalethumb-horizontal | scalethumbstart | scalethumbtick | scalethumb-vertical | scale-vertical | scrollbarbutton-down | scrollbarbutton-left | scrollbarbutton-right | scrollbarbutton-up | scrollbarthumb-horizontal | scrollbarthumb-vertical | scrollbartrack-horizontal | scrollbartrack-vertical | searchfield | separator | sheet | spinner | spinner-downbutton | spinner-textfield | spinner-upbutton | splitter | statusbar | statusbarpanel | tab | tabpanel | tabpanels | tab-scroll-arrow-back | tab-scroll-arrow-forward | textfield | textfield-multiline | toolbar | toolbarbutton | toolbarbutton-dropdown | toolbargripper | toolbox | tooltip | treeheader | treeheadercell | treeheadersortarrow | treeitem | treeline | treetwisty | treetwistyopen | treeview | -moz-mac-unified-toolbar | -moz-win-borderless-glass | -moz-win-browsertabbar-toolbox | -moz-win-communicationstext | -moz-win-communications-toolbox | -moz-win-exclude-glass | -moz-win-glass | -moz-win-mediatext | -moz-win-media-toolbox | -moz-window-button-box | -moz-window-button-box-maximized | -moz-window-button-close | -moz-window-button-maximize | -moz-window-button-minimize | -moz-window-button-restore | -moz-window-frame-bottom | -moz-window-frame-left | -moz-window-frame-right | -moz-window-titlebar | -moz-window-titlebar-maximized",
     "-ms-appearance"                : "none | icon | window | desktop | workspace | document | tooltip | dialog | button | push-button | hyperlink | radio | radio-button | checkbox | menu-item | tab | menu | menubar | pull-down-menu | pop-up-menu | list-menu | radio-group | checkbox-group | outline-tree | range | field | combo-box | signature | password | normal",
-    "-webkit-appearance"            : "none | button | button-bevel | caps-lock-indicator | caret | checkbox | default-button | listbox | listitem | media-fullscreen-button | media-mute-button | media-play-button | media-seek-back-button | media-seek-forward-button | media-slider | media-sliderthumb | menulist | menulist-button | menulist-text | menulist-textfield | push-button | radio | searchfield | searchfield-cancel-button | searchfield-decoration | searchfield-results-button | searchfield-results-decoration | slider-horizontal | slider-vertical | sliderthumb-horizontal | sliderthumb-vertical | square-button | textarea | textfield | scrollbarbutton-down | scrollbarbutton-left | scrollbarbutton-right | scrollbarbutton-up | scrollbargripper-horizontal | scrollbargripper-vertical | scrollbarthumb-horizontal | scrollbarthumb-vertical | scrollbartrack-horizontal | scrollbartrack-vertical",
+    "-webkit-appearance"            : "none | button | button-bevel | caps-lock-indicator | caret | checkbox | default-button | listbox	| listitem | media-fullscreen-button | media-mute-button | media-play-button | media-seek-back-button	| media-seek-forward-button	| media-slider | media-sliderthumb | menulist	| menulist-button	| menulist-text	| menulist-textfield | push-button	| radio	| searchfield	| searchfield-cancel-button	| searchfield-decoration | searchfield-results-button | searchfield-results-decoration | slider-horizontal | slider-vertical | sliderthumb-horizontal | sliderthumb-vertical	| square-button	| textarea	| textfield	| scrollbarbutton-down | scrollbarbutton-left | scrollbarbutton-right | scrollbarbutton-up | scrollbargripper-horizontal | scrollbargripper-vertical | scrollbarthumb-horizontal | scrollbarthumb-vertical | scrollbartrack-horizontal | scrollbartrack-vertical",
     "-o-appearance"                 : "none | window | desktop | workspace | document | tooltip | dialog | button | push-button | hyperlink | radio | radio-button | checkbox | menu-item | tab | menu | menubar | pull-down-menu | pop-up-menu | list-menu | radio-group | checkbox-group | outline-tree | range | field | combo-box | signature | password | normal",
 
     "azimuth"                       : "<azimuth>",
@@ -7431,7 +7431,13 @@ function clone(parent, circular, depth, prototype, includeNonEnumerable) {
     } else if (clone.__isDate(parent)) {
       child = new Date(parent.getTime());
     } else if (useBuffer && Buffer.isBuffer(parent)) {
-      child = new Buffer(parent.length);
+      if (Buffer.allocUnsafe) {
+        // Node.js >= 4.5.0
+        child = Buffer.allocUnsafe(parent.length);
+      } else {
+        // Older Node.js versions
+        child = new Buffer(parent.length);
+      }
       parent.copy(child);
       return child;
     } else if (_instanceof(parent, Error)) {
@@ -7876,7 +7882,7 @@ var CSSLint = (function() {
  * @param {Object} ruleset The set of rules to work with, including if
  *      they are errors or warnings.
  * @param {Object} explicitly allowed lines
- * @param {[][]} ingore list of line ranges to be ignored
+ * @param {[][]} ignore list of line ranges to be ignored
  */
 function Reporter(lines, ruleset, allow, ignore) {
     "use strict";
@@ -7987,13 +7993,7 @@ Reporter.prototype = {
             return;
         }
 
-        var ignore = false;
-        CSSLint.Util.forEach(this.ignore, function (range) {
-            if (range[0] <= line && line <= range[1]) {
-                ignore = true;
-            }
-        });
-        if (ignore) {
+        if (this.isIgnored(line)) {
             return;
         }
 
@@ -8068,6 +8068,23 @@ Reporter.prototype = {
     stat: function(name, value) {
         "use strict";
         this.stats[name] = value;
+    },
+
+    /**
+     * Helper function to check if a line is ignored
+     * @param {int} line Line to check for ignore-status
+     * @method isIgnored
+     * @return {Boolean} True if the line is ignored, else false
+    */
+    isIgnored: function(line) {
+        "use strict";
+        var ignore = false;
+        CSSLint.Util.forEach(this.ignore, function (range) {
+            if (range[0] <= line && line <= range[1]) {
+                ignore = true;
+            }
+        });
+        return ignore;
     }
 };
 
@@ -8185,6 +8202,147 @@ CSSLint.addRule({
 
 });
 
+/*
+ * Rule: Check CSS properties against web-features baseline status
+ */
+
+/* global require */
+
+CSSLint.addRule({
+
+    // rule information
+    id: "baseline-check",
+    name: "Baseline feature check",
+    desc: "Check CSS properties against web-features baseline status.",
+    url: "https://github.com/CSSLint/csslint/wiki/Baseline-feature-check",
+    browsers: "All",
+
+    // initialization
+    init: function(parser, reporter) {
+        "use strict";
+        var rule = this,
+            webFeatures,
+            propertyToFeatures = {};
+
+        // Try to load web-features, handle gracefully if not available
+        try {
+            webFeatures = require("web-features");
+            
+            // Build property to features mapping
+            Object.keys(webFeatures.features).forEach(function(featureKey) {
+                var feature = webFeatures.features[featureKey];
+                if (feature.compat_features) { // jshint ignore:line
+                    feature.compat_features.forEach(function(cf) { // jshint ignore:line
+                        if (cf.indexOf("css.properties.") === 0) {
+                            var propertyPath = cf.replace("css.properties.", "");
+                            var propertyName = propertyPath.split(".")[0];
+                            
+                            if (!propertyToFeatures[propertyName]) {
+                                propertyToFeatures[propertyName] = [];
+                            }
+                            
+                            // Avoid duplicates
+                            var exists = false;
+                            for (var i = 0; i < propertyToFeatures[propertyName].length; i++) {
+                                if (propertyToFeatures[propertyName][i].feature === featureKey) {
+                                    exists = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (!exists) {
+                                propertyToFeatures[propertyName].push({
+                                    feature: featureKey,
+                                    baseline: feature.status ? feature.status.baseline : false,
+                                    name: feature.name,
+                                    baselineDate: feature.status ? feature.status.baseline_low_date : null // jshint ignore:line
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+        } catch (ex) {
+            // web-features not available, disable rule
+            return;
+        }
+
+        function getBaselineStatus(propertyName) {
+            var features = propertyToFeatures[propertyName];
+            if (!features || features.length === 0) {
+                return null;
+            }
+            
+            // Check if there are any high baseline features for this property
+            var highFeatures = features.filter(function(f) { return f.baseline === "high"; });
+            var lowFeatures = features.filter(function(f) { return f.baseline === "low"; });
+            var noBaselineFeatures = features.filter(function(f) { return f.baseline === false; });
+            
+            // If there are any high baseline features, the property is generally well-supported
+            // Only warn about low/no-baseline features if there are no high baseline alternatives
+            if (highFeatures.length > 0) {
+                // Property has good baseline support, don't warn
+                return {
+                    status: "high",
+                    features: highFeatures
+                };
+            } else if (lowFeatures.length > 0) {
+                // Only low baseline support
+                return {
+                    status: "low",
+                    features: lowFeatures
+                };
+            } else if (noBaselineFeatures.length > 0) {
+                // No baseline support
+                return {
+                    status: "no-baseline",
+                    features: noBaselineFeatures
+                };
+            }
+            
+            return null;
+        }
+
+        function formatFeatureInfo(features) {
+            if (features.length === 1) {
+                return features[0].name;
+            } else {
+                return features.map(function(f) { return f.name; }).join(", ");
+            }
+        }
+
+        parser.addListener("property", function(event) {
+            var propertyName = event.property.text.toLowerCase();
+            var baselineInfo = getBaselineStatus(propertyName);
+            
+            if (baselineInfo) {
+                var message;
+                switch (baselineInfo.status) {
+                    case "no-baseline":
+                        message = "Property '" + propertyName + "' has no baseline support (" + 
+                                formatFeatureInfo(baselineInfo.features) + "). Browser support is very limited.";
+                        reporter.report(message, event.property.line, event.property.col, rule);
+                        break;
+                    case "low":
+                        message = "Property '" + propertyName + "' has low baseline status (" + 
+                                formatFeatureInfo(baselineInfo.features) + "). Consider providing fallbacks.";
+                        reporter.report(message, event.property.line, event.property.col, rule);
+                        break;
+                    case "high":
+                        // High baseline - no warning needed, but could be info
+                        break;
+                }
+            }
+        });
+
+        // Report summary at the end
+        parser.addListener("endstylesheet", function() {
+            var totalProperties = Object.keys(propertyToFeatures).length;
+            reporter.stat("baseline-properties-tracked", totalProperties);
+        });
+    }
+
+});
 /*
  * Rule: Don't use width or height when using padding or border.
  */
@@ -8830,6 +8988,7 @@ CSSLint.addRule({
 
         parser.addListener("endrule", function(event) {
             var selectors = event.selectors;
+
             if (count === 0) {
                 reporter.report("Rule is empty.", selectors[0].line, selectors[0].col, rule);
             }
@@ -8962,9 +9121,11 @@ CSSLint.addRule({
 
         // count how many times "float" is used
         parser.addListener("property", function(event) {
-            if (event.property.text.toLowerCase() === "float" &&
-                    event.value.text.toLowerCase() !== "none") {
-                count++;
+            if (!reporter.isIgnored(event.property.line)) {
+              if (event.property.text.toLowerCase() === "float" &&
+                      event.value.text.toLowerCase() !== "none") {
+                  count++;
+              }
             }
         });
 
@@ -8999,8 +9160,10 @@ CSSLint.addRule({
             count = 0;
 
 
-        parser.addListener("startfontface", function() {
-            count++;
+        parser.addListener("startfontface", function(event) {
+            if (!reporter.isIgnored(event.line)) {
+                count++;
+            }
         });
 
         parser.addListener("endstylesheet", function() {
@@ -9033,8 +9196,10 @@ CSSLint.addRule({
 
         // check for use of "font-size"
         parser.addListener("property", function(event) {
-            if (event.property.toString() === "font-size") {
-                count++;
+            if (!reporter.isIgnored(event.property.line)) {
+                if (event.property.toString() === "font-size") {
+                    count++;
+                }
             }
         });
 
@@ -9261,9 +9426,11 @@ CSSLint.addRule({
 
         // warn that important is used and increment the declaration counter
         parser.addListener("property", function(event) {
-            if (event.important === true) {
-                count++;
-                reporter.report("Use of !important", event.line, event.col, rule);
+            if (!reporter.isIgnored(event.line)) {
+                if (event.important === true) {
+                    count++;
+                    reporter.report("Use of !important", event.line, event.col, rule);
+                }
             }
         });
 
@@ -10014,6 +10181,10 @@ CSSLint.addRule({
             for (i=0; i < selectors.length; i++) {
                 selector = selectors[i];
                 part = selector.parts[selector.parts.length-1];
+
+                if (reporter.isIgnored(part.line)) {
+                    continue;
+                }
 
                 if (part.elementName && /(h[1-6])/i.test(part.elementName.toString())) {
 
